@@ -49,40 +49,38 @@ object LoadSpec extends ZIOSpecDefault:
 
       test("nodeId siempre está en rango 1-20") {
         val msgs = (1 to 200).map(makeMsg).toList
-        val ids  = msgs.map(_.dispatchUnit.stripPrefix("node-").toInt)
+        val ids  = msgs.map(_.nodeId.stripPrefix("node-").toInt)
         assertTrue(ids.forall(i => i >= 1 && i <= 20))
       }
     ),
 
     suite("lógica de merge en lote")(
 
-      test("merge de 100 intervalos del mismo slot acumula count correctamente") {
-        val base = PerformanceInterval("DU-A", now, 900.0, 1100.0, 1000.0, 1)
-        val merged = (1 until 100).foldLeft(base) { (acc, _) =>
-          acc.merge(PerformanceInterval("DU-A", now, 950.0, 1050.0, 1000.0, 1))
-        }
+      test("merge preserva meteredValue cuando el nuevo no lo tiene") {
+        val reg  = PerformanceInterval("DU-A", "node-1", now, meteredValue = Some(1000.0))
+        val base = PerformanceInterval("DU-A", "node-1", now, baselineValue = Some(500.0), baselineId = Some("b-1"))
+        val merged = (1 until 100).foldLeft(reg)((acc, _) => acc.merge(base))
         assertTrue(
-          merged.count    == 100,
-          merged.minValue <= 900.0,
-          merged.maxValue >= 1100.0,
-          merged.sumValue == (1000.0 * 100)
+          merged.meteredValue  == Some(1000.0),
+          merged.baselineValue == Some(500.0),
+          merged.baselineId    == Some("b-1")
         )
       },
 
-      test("merge preserva el mínimo global") {
+      test("merge — el meteredValue más reciente sobreescribe el anterior") {
         val intervals = (1 to 50).map(i =>
-          PerformanceInterval("DU-B", now, i.toDouble, 1000.0, i.toDouble, 1)
+          PerformanceInterval("DU-B", "node-1", now, meteredValue = Some(i.toDouble * 10.0))
         ).toList
         val merged = intervals.tail.foldLeft(intervals.head)(_.merge(_))
-        assertTrue(merged.minValue == 1.0)
+        assertTrue(merged.meteredValue == Some(500.0))
       },
 
-      test("merge preserva el máximo global") {
+      test("merge — baselineId del más reciente gana") {
         val intervals = (1 to 50).map(i =>
-          PerformanceInterval("DU-C", now, 900.0, i.toDouble * 10, i.toDouble, 1)
+          PerformanceInterval("DU-C", s"node-$i", now, baselineId = Some(s"b-$i"))
         ).toList
         val merged = intervals.tail.foldLeft(intervals.head)(_.merge(_))
-        assertTrue(merged.maxValue == 500.0)
+        assertTrue(merged.baselineId == Some("b-50"))
       }
     ),
 

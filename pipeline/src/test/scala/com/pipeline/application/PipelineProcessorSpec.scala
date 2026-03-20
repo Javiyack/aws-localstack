@@ -32,8 +32,6 @@ object PipelineProcessorSpec extends ZIOSpecDefault:
 
   // ─── Stubs ────────────────────────────────────────────────────────────────
 
-  /** Stub de ValueClient que devuelve 1000.0 para cualquier id. */
-  private val stubValueClient: ULayer[ValueClient.Env] = ???
   // NOTE: Los stubs completos requieren ZIO Testkit + mocking framework.
   // Estos tests documentan el contrato esperado y se ejecutarán con
   // servicios reales en el entorno de integración (Docker Compose).
@@ -83,26 +81,24 @@ object PipelineProcessorSpec extends ZIOSpecDefault:
 
     suite("construcción de PerformanceInterval")(
 
-      test("el primer intervalo tiene count=1 y min=max=sum=value") {
+      test("registro produce intervalo con meteredValue") {
         val v  = 950.1234
-        val pi = PerformanceInterval("DU-01", now, v, v, v, 1)
+        val pi = PerformanceInterval("DU-01", "DU-01", now, meteredValue = Some(v))
         assertTrue(
-          pi.minValue == v,
-          pi.maxValue == v,
-          pi.sumValue == v,
-          pi.count    == 1
+          pi.meteredValue  == Some(v),
+          pi.baselineValue.isEmpty,
+          pi.baselineId.isEmpty
         )
       },
 
-      test("merge de dos intervalos acumula correctamente") {
-        val a = PerformanceInterval("DU-01", now, 900.0, 1000.0, 1900.0, 2)
-        val b = PerformanceInterval("DU-01", now, 800.0, 1100.0,  800.0, 1)
+      test("merge de registro y baseline produce intervalo completo") {
+        val a = PerformanceInterval("DU-01", "DU-01", now, meteredValue = Some(950.1234))
+        val b = PerformanceInterval("DU-01", "DU-01", now, baselineValue = Some(800.0), baselineId = Some("b-1"))
         val m = a.merge(b)
         assertTrue(
-          m.minValue == 800.0,
-          m.maxValue == 1100.0,
-          m.sumValue == 2700.0,
-          m.count    == 3
+          m.meteredValue  == Some(950.1234),
+          m.baselineValue == Some(800.0),
+          m.baselineId    == Some("b-1")
         )
       }
     ),

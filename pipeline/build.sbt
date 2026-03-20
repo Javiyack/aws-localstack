@@ -1,14 +1,14 @@
 val scala3Version     = "3.5.2"
 
-val zioVersion        = "2.1.13"
-val zioAwsVersion     = "7.28.16.2"
-val zioRedisVersion   = "1.0.0"
+val zioVersion        = "2.1.19"
+val zioAwsVersion     = "7.31.52.2"
+val zioRedisVersion   = "1.1.3"
 val slickVersion      = "3.5.2"
-val scanamoVersion    = "2.0.0"
+val scanamoVersion    = "3.0.0"
 val sttpVersion       = "3.10.1"
 val circeVersion      = "0.14.10"
 val awsLambdaVersion  = "1.2.3"
-val zioConfigVersion  = "4.0.3"
+val zioConfigVersion  = "4.0.4"
 
 lazy val root = (project in file("."))
   .settings(
@@ -68,8 +68,8 @@ lazy val root = (project in file("."))
       "dev.zio" %% "zio-config-magnolia" % zioConfigVersion,
 
       // ── Logging ───────────────────────────────────────────────
-      "dev.zio" %% "zio-logging"       % "2.4.0",
-      "dev.zio" %% "zio-logging-slf4j" % "2.4.0",
+      "dev.zio" %% "zio-logging"       % "2.5.0",
+      "dev.zio" %% "zio-logging-slf4j" % "2.5.0",
 
       // ── Test ──────────────────────────────────────────────────
       "dev.zio" %% "zio-test"          % zioVersion % Test,

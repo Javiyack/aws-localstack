@@ -73,7 +73,7 @@ object PerformanceCache:
         .set(
           key(interval.dispatchUnit, interval.dttmUtc),
           interval.asJson.noSpaces,
-          expireTime = Some(SetExpire.Ex(ttl.toSeconds))
+          expireTime = Some(ttl)
         )
         .unit
     }

@@ -23,38 +23,38 @@ object KinesisProducer:
   def publish(msg: InputMessage): ZIO[Env, Throwable, PutRecordResponse] =
     for
       cfg  <- ZIO.service[AppConfig]
-      resp <- put(msg, cfg.kinesis.outputStream)
+      resp <- put(msg, cfg.kinesis.outputStreamName)
     yield resp
 
   /** Publica un lote de mensajes (PutRecords — hasta 500 por llamada). */
   def publishBatch(
     msgs: List[InputMessage]
   ): ZIO[Env, Throwable, Unit] =
-    ZIO.serviceWithZIO[AppConfig] { cfg =>
-      ZIO
-        .foreach(msgs.grouped(500).toList) { batch =>
-          val entries = batch.map { msg =>
-            val json = msg.asJson.noSpaces
-            PutRecordsRequestEntry
-              .builder()
-              .data(SdkBytes.fromString(json, StandardCharsets.UTF_8))
-              .partitionKey(msg.dispatchUnit)
-              .build()
-          }
-          ZIO
-            .fromCompletableFuture(
-              summon[KinesisAsyncClient].putRecords(   // resolved via ZIO.serviceWith below
-                PutRecordsRequest
-                  .builder()
-                  .streamName(cfg.kinesis.outputStream)
-                  .records(entries*)
-                  .build()
-              )
-            )
-            .unit
-        }
-        .unit
-    }
+    for
+      cfg    <- ZIO.service[AppConfig]
+      client <- ZIO.service[KinesisAsyncClient]
+      _      <- ZIO.foreach(msgs.grouped(500).toList) { batch =>
+                  val entries = batch.map { msg =>
+                    val json = msg.asJson.noSpaces
+                    PutRecordsRequestEntry
+                      .builder()
+                      .data(SdkBytes.fromString(json, StandardCharsets.UTF_8))
+                      .partitionKey(msg.nodeId)
+                      .build()
+                  }
+                  ZIO
+                    .fromCompletableFuture(
+                      client.putRecords(
+                        PutRecordsRequest
+                          .builder()
+                          .streamName(cfg.kinesis.outputStreamName)
+                          .records(entries*)
+                          .build()
+                      )
+                    )
+                    .unit
+                }
+    yield ()
 
   // ─── private ──────────────────────────────────────────────────────────────
 
@@ -70,7 +70,7 @@ object KinesisProducer:
             .builder()
             .streamName(streamName)
             .data(SdkBytes.fromString(json, StandardCharsets.UTF_8))
-            .partitionKey(msg.dispatchUnit)
+            .partitionKey(msg.nodeId)
             .build()
         )
       )

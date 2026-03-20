@@ -7,6 +7,8 @@ import zio.test.*
 import zio.test.Assertion.*
 import java.time.Instant
 
+import JsonCodecs.given
+
 object JsonCodecSpec extends ZIOSpecDefault:
 
   private val now = Instant.parse("2026-03-20T10:00:00Z")
@@ -28,7 +30,7 @@ object JsonCodecSpec extends ZIOSpecDefault:
 
     suite("PerformanceInterval")(
       test("round-trip encode/decode") {
-        val original = PerformanceInterval("DU-A", now, 100.0, 200.0, 300.0, 2)
+        val original = PerformanceInterval("DU-A", "node-1", now, meteredValue = Some(100.0), baselineValue = Some(200.0))
         val json     = original.asJson.noSpaces
         val decoded  = decode[PerformanceInterval](json)
         assertTrue(decoded == Right(original))

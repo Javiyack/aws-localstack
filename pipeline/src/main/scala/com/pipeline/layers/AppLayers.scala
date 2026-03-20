@@ -8,13 +8,11 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient
 import sttp.client3.SttpBackend
-import sttp.client3.asynchttpclient.zio.AsyncHttpClientZioBackend
+import sttp.client3.httpclient.zio.HttpClientZioBackend
 import zio.*
 import zio.redis.*
-import zio.redis.embedded.EmbeddedRedis
 
 import java.net.URI
-import java.util.Properties
 
 /** Cableado completo de layers ZIO para producción y LocalStack.
  *
@@ -62,7 +60,7 @@ object AppLayers:
       ZIO.serviceWithZIO[AppConfig] { cfg =>
         ZIO.acquireRelease(
           ZIO.attempt {
-            val builder = DynamoDbAsyncClient.builder().region(Region.of(cfg.kinesis.region))
+            val builder = DynamoDbAsyncClient.builder().region(Region.of(cfg.dynamo.region))
             if cfg.localstack then
               builder
                 .endpointOverride(URI.create("http://localhost:4566"))
@@ -79,16 +77,15 @@ object AppLayers:
 
   // ─── Redis ─────────────────────────────────────────────────────────────────
 
-  private val redisLayer: ZLayer[AppConfig, Throwable, Redis] =
-    ZLayer.makeSome[AppConfig, Redis](
+  private val redisLayer: ZLayer[AppConfig, Throwable, Redis] = {
+    val configLayer: ZLayer[AppConfig, Nothing, RedisConfig] =
       ZLayer.fromZIO(
-        ZIO.serviceWith[AppConfig] { cfg =>
-          RedisConfig(cfg.redis.host, cfg.redis.port)
-        }
-      ),
-      RedisExecutor.layer,
-      Redis.layer
-    )
+        ZIO.serviceWith[AppConfig](cfg => RedisConfig(cfg.redis.host, cfg.redis.port))
+      )
+    val codecLayer: ZLayer[Any, Nothing, CodecSupplier] =
+      ZLayer.succeed(CodecSupplier.utf8)
+    (configLayer ++ codecLayer) >>> Redis.singleNode
+  }
 
   // ─── PostgreSQL (Slick) ────────────────────────────────────────────────────
 
@@ -97,12 +94,12 @@ object AppLayers:
       ZIO.serviceWithZIO[AppConfig] { cfg =>
         ZIO.acquireRelease(
           ZIO.attempt {
-            val props = new Properties()
-            props.setProperty("url",      cfg.postgres.url)
-            props.setProperty("user",     cfg.postgres.user)
-            props.setProperty("password", cfg.postgres.password)
-            props.setProperty("driver",  "org.postgresql.Driver")
-            Database.forConfig("", props)
+            Database.forURL(
+              url    = s"jdbc:postgresql://${cfg.postgres.host}:${cfg.postgres.port}/${cfg.postgres.database}",
+              user   = cfg.postgres.user,
+              password = cfg.postgres.password,
+              driver = "org.postgresql.Driver"
+            )
           }
         )(db => ZIO.succeed(db.close()))
       }
@@ -111,4 +108,4 @@ object AppLayers:
   // ─── sttp HTTP backend ─────────────────────────────────────────────────────
 
   private val sttpLayer: ZLayer[Any, Throwable, SttpBackend[Task, Any]] =
-    ZLayer.scoped(AsyncHttpClientZioBackend.scoped())
+    ZLayer.scoped(HttpClientZioBackend.scoped())

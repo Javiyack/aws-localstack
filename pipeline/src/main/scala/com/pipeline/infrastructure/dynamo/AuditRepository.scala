@@ -9,6 +9,7 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import zio.*
 
 import java.time.Instant
+import scala.concurrent.ExecutionContext
 
 /** Persiste y consulta AuditRecord en la tabla DynamoDB de auditoría.
  *
@@ -22,9 +23,9 @@ object AuditRepository:
 
   /** Escribe un AuditRecord. Sobrescribe si ya existía (idempotente). */
   def put(record: AuditRecord): ZIO[Env, Throwable, Unit] =
-    withTable { table =>
-      ZIO.fromFuture(_ => table.put(record).execute() )
-    }.unit
+    withScanamo { (scanamo, table) =>
+      ZIO.fromFuture(_ => scanamo.exec(table.put(record))).unit
+    }
 
   /** Escribe varios registros en paralelo (sin garantía de orden). */
   def putAll(records: List[AuditRecord]): ZIO[Env, Throwable, Unit] =
@@ -35,55 +36,56 @@ object AuditRepository:
     dispatchUnit: String,
     dttmUtc: Instant
   ): ZIO[Env, Throwable, Option[AuditRecord]] =
-    withTable { table =>
-      ZIO.fromFuture(_ =>
-        table
-          .get("dispatchUnit" === dispatchUnit and "dttmUtc" === dttmUtc.toString)
-          .execute()
-      )
-    }.flatMap {
-      case None         => ZIO.none
-      case Some(result) =>
-        ZIO.fromEither(result.left.map(e => new RuntimeException(e.toString))).map(Some(_))
+    withScanamo { (scanamo, table) =>
+      ZIO
+        .fromFuture(_ =>
+          scanamo.exec(
+            table.get("dispatchUnit" === dispatchUnit and "dttmUtc" === dttmUtc.toString)
+          )
+        )
+        .flatMap {
+          case None            => ZIO.none
+          case Some(Right(r))  => ZIO.some(r)
+          case Some(Left(err)) => ZIO.fail(new RuntimeException(err.toString))
+        }
     }
 
-  /** Consulta todos los registros de una unidad en un período.
-   *
-   *  @param from  instante inicial (inclusive)
-   *  @param to    instante final   (inclusive)
-   */
+  /** Consulta todos los registros de una unidad en un período. */
   def query(
     dispatchUnit: String,
     from: Instant,
     to: Instant
   ): ZIO[Env, Throwable, List[AuditRecord]] =
-    withTable { table =>
-      ZIO.fromFuture(_ =>
-        table
-          .query(
-            "dispatchUnit" === dispatchUnit and
-              ("dttmUtc" between from.toString and to.toString)
+    withScanamo { (scanamo, table) =>
+      ZIO
+        .fromFuture(_ =>
+          scanamo.exec(
+            table.query(
+              "dispatchUnit" === dispatchUnit and
+                ("dttmUtc" between from.toString and to.toString)
+            )
           )
-          .execute()
-      )
-    }.flatMap { results =>
-      ZIO.foreach(results) {
-        case Right(r) => ZIO.succeed(r)
-        case Left(e)  => ZIO.fail(new RuntimeException(e.toString))
-      }
+        )
+        .flatMap { results =>
+          ZIO.foreach(results) {
+            case Right(r) => ZIO.succeed(r)
+            case Left(e)  => ZIO.fail(new RuntimeException(e.toString))
+          }
+        }
     }
 
   // ─── private ──────────────────────────────────────────────────────────────
 
-  private type ScanamoTable = ScanamoAsync#Table[AuditRecord]
-
-  private def withTable[A](
-    f: ScanamoTable => ZIO[Any, Throwable, A]
+  private def withScanamo[A](
+    f: (ScanamoAsync, Table[AuditRecord]) => ZIO[Any, Throwable, A]
   ): ZIO[Env, Throwable, A] =
     for
       cfg    <- ZIO.service[AppConfig]
       client <- ZIO.service[DynamoDbAsyncClient]
-      scanamo = ScanamoAsync(client)
-      table   = scanamo.Table[AuditRecord](cfg.dynamo.tableName)
-      result <- f(table)
+      result <- ZIO
+                  .attempt {
+                    given ExecutionContext = ExecutionContext.global
+                    ScanamoAsync(client)
+                  }
+                  .flatMap(scanamo => f(scanamo, Table[AuditRecord](cfg.dynamo.tableName)))
     yield result

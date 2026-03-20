@@ -2,9 +2,8 @@ package com.pipeline.infrastructure.postgres
 
 import com.pipeline.config.AppConfig
 import com.pipeline.domain.PerformanceInterval
-import slick.jdbc.PostgresProfile.api.*
+import slick.jdbc.PostgresProfile.api.{Tag as SlickTag, *}
 import zio.*
-import zio.interop.reactivestreams.*
 
 import java.time.Instant
 import java.sql.Timestamp
@@ -21,22 +20,21 @@ object PerformanceRepository:
 
   // ─── Table mapping ────────────────────────────────────────────────────────
 
-  // Row tuple: (dispatchUnit, dttmUtc, minValue, maxValue, sumValue, count)
-  private type Row = (String, Timestamp, Double, Double, Double, Int)
+  private type Row = (String, String, Timestamp, Option[Double], Option[Double], Option[String])
 
-  private class PerformanceTable(tag: Tag)
+  private class PerformanceTable(tag: SlickTag)
       extends Table[Row](tag, "performance_intervals"):
 
-    def dispatchUnit = column[String]("dispatch_unit")
-    def dttmUtc      = column[Timestamp]("dttm_utc")
-    def minValue     = column[Double]("min_value")
-    def maxValue     = column[Double]("max_value")
-    def sumValue     = column[Double]("sum_value")
-    def count        = column[Int]("count")
+    def dispatchUnit  = column[String]("dispatch_unit")
+    def nodeId        = column[String]("node_id")
+    def dttmUtc       = column[Timestamp]("dttm_utc")
+    def meteredValue  = column[Option[Double]]("metered_value")
+    def baselineValue = column[Option[Double]]("baseline_value")
+    def baselineId    = column[Option[String]]("baseline_id")
 
     def pk = primaryKey("pk_performance_intervals", (dispatchUnit, dttmUtc))
 
-    def * = (dispatchUnit, dttmUtc, minValue, maxValue, sumValue, count)
+    def * = (dispatchUnit, nodeId, dttmUtc, meteredValue, baselineValue, baselineId)
 
   private val table = TableQuery[PerformanceTable]
 
@@ -71,15 +69,15 @@ object PerformanceRepository:
   private def upsertAction(i: PerformanceInterval): DBIO[Int] =
     sqlu"""
       INSERT INTO performance_intervals
-        (dispatch_unit, dttm_utc, min_value, max_value, sum_value, count)
+        (dispatch_unit, node_id, dttm_utc, metered_value, baseline_value, baseline_id)
       VALUES
-        (${i.dispatchUnit}, ${Timestamp.from(i.dttmUtc)},
-         ${i.minValue}, ${i.maxValue}, ${i.sumValue}, ${i.count})
+        (${i.dispatchUnit}, ${i.nodeId}, ${Timestamp.from(i.dttmUtc)},
+         ${i.meteredValue}, ${i.baselineValue}, ${i.baselineId})
       ON CONFLICT (dispatch_unit, dttm_utc) DO UPDATE SET
-        min_value = LEAST(EXCLUDED.min_value,     performance_intervals.min_value),
-        max_value = GREATEST(EXCLUDED.max_value,  performance_intervals.max_value),
-        sum_value = performance_intervals.sum_value + EXCLUDED.sum_value,
-        count     = performance_intervals.count   + EXCLUDED.count
+        metered_value  = COALESCE(EXCLUDED.metered_value,  performance_intervals.metered_value),
+        baseline_value = COALESCE(EXCLUDED.baseline_value, performance_intervals.baseline_value),
+        baseline_id    = COALESCE(EXCLUDED.baseline_id,    performance_intervals.baseline_id),
+        updated_at     = NOW()
     """
 
   private def run[R](action: DBIO[R]): ZIO[Env, Throwable, R] =
@@ -89,10 +87,10 @@ object PerformanceRepository:
 
   private def rowToInterval(row: Row): PerformanceInterval =
     PerformanceInterval(
-      dispatchUnit = row._1,
-      dttmUtc      = row._2.toInstant,
-      minValue     = row._3,
-      maxValue     = row._4,
-      sumValue     = row._5,
-      count        = row._6
+      dispatchUnit  = row._1,
+      nodeId        = row._2,
+      dttmUtc       = row._3.toInstant,
+      meteredValue  = row._4,
+      baselineValue = row._5,
+      baselineId    = row._6
     )

@@ -6,41 +6,46 @@ import java.time.Instant
 
 object PerformanceIntervalSpec extends ZIOSpecDefault:
 
+  private val now = Instant.parse("2026-03-20T10:00:00Z")
+
   private val base = PerformanceInterval(
-    dispatchUnit = "DU-A",
-    dttmUtc      = Instant.parse("2026-03-20T10:00:00Z"),
-    minValue     = 100.0,
-    maxValue     = 200.0,
-    sumValue     = 300.0,
-    count        = 2
+    dispatchUnit  = "DU-A",
+    nodeId        = "node-1",
+    dttmUtc       = now,
+    meteredValue  = Some(100.0),
+    baselineValue = None,
+    baselineId    = None
   )
 
   def spec = suite("PerformanceInterval")(
 
     suite("merge")(
-      test("acumula correctamente dos intervalos") {
-        val incoming = base.copy(minValue = 50.0, maxValue = 250.0, sumValue = 150.0, count = 1)
-        val merged   = base.merge(incoming)
+      test("merge combina meteredValue y baselineValue en un solo intervalo") {
+        val withBaseline = base.copy(meteredValue = None, baselineValue = Some(200.0), baselineId = Some("b-1"))
+        val merged       = base.merge(withBaseline)
         assertTrue(
-          merged.minValue == 50.0,
-          merged.maxValue == 250.0,
-          merged.sumValue == 450.0,
-          merged.count    == 3
+          merged.meteredValue  == Some(100.0),
+          merged.baselineValue == Some(200.0),
+          merged.baselineId    == Some("b-1")
         )
       },
-      test("merge con sí mismo duplica la suma y el count") {
-        val merged = base.merge(base)
-        assertTrue(
-          merged.minValue == base.minValue,
-          merged.maxValue == base.maxValue,
-          merged.sumValue == 600.0,
-          merged.count    == 4
-        )
+      test("merge — el valor más reciente sobreescribe el anterior") {
+        val updated = base.copy(meteredValue = Some(150.0))
+        val merged  = base.merge(updated)
+        assertTrue(merged.meteredValue == Some(150.0))
       },
       test("el resultado conserva dispatchUnit y dttmUtc del receptor") {
-        val other = base.copy(dispatchUnit = "DU-B")
+        val other  = base.copy(nodeId = "node-2", dispatchUnit = "DU-B")
         val merged = base.merge(other)
-        assertTrue(merged.dispatchUnit == "DU-A")
+        assertTrue(merged.dispatchUnit == "DU-A", merged.nodeId == "node-1")
+      },
+      test("merge preserva meteredValue antiguo cuando el nuevo es None") {
+        val noMetered = base.copy(meteredValue = None, baselineValue = Some(999.0))
+        val merged    = base.merge(noMetered)
+        assertTrue(
+          merged.meteredValue  == Some(100.0),
+          merged.baselineValue == Some(999.0)
+        )
       }
     )
   )

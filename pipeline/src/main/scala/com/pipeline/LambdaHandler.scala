@@ -46,12 +46,12 @@ class LambdaHandler extends RequestHandler[KinesisEvent, Unit]:
 
         msgs = records.flatMap { rec =>
           val raw = StandardCharsets.UTF_8
-            .decode(rec.getKinesis.getData.asByteBuffer())
+            .decode(rec.getKinesis.getData)
             .toString
           decode[com.pipeline.domain.InputMessage](raw) match
             case Right(m) => Some(m)
             case Left(e) =>
-              scribe.warn(s"Record inválido descartado: $e")
+              java.lang.System.err.println(s"Record inválido descartado: $e")
               None
         }
 

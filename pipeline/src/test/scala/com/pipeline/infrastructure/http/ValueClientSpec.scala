@@ -1,5 +1,6 @@
 package com.pipeline.infrastructure.http
 
+import com.pipeline.config.*
 import io.circe.syntax.*
 import io.circe.Json
 import sttp.client3.*
@@ -21,10 +22,10 @@ object ValueClientSpec extends ZIOSpecDefault:
 
   private def mkCfg(baseUrl: String): AppConfig =
     AppConfig(
-      kinesis      = KinesisConfig("in", "out", "us-east-1"),
-      dynamo       = DynamoConfig("audit"),
+      kinesis      = KinesisConfig("http://localhost:4566", "us-east-1", "input-stream", "output-stream"),
+      dynamo       = DynamoConfig("http://localhost:4566", "us-east-1", "audit"),
       redis        = RedisConfig("localhost", 6379),
-      postgres     = PostgresConfig("jdbc:postgresql://localhost:5432/perf", "user", "pass"),
+      postgres     = PostgresConfig("localhost", 5432, "perf", "user", "pass"),
       valueBackend = ValueBackendConfig(baseUrl),
       localstack   = true
     )

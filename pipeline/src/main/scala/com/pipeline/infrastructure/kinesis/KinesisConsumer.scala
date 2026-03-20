@@ -32,7 +32,7 @@ object KinesisConsumer:
     fromTimestamp: Option[Instant] = None
   ): ZStream[Env, Throwable, InputMessage] =
     ZStream.serviceWithStream[AppConfig] { cfg =>
-      shardsStream(cfg.kinesis.inputStream, fromTimestamp)
+      shardsStream(cfg.kinesis.inputStreamName, fromTimestamp)
         .via(decodeRecords)
     }
 
@@ -106,7 +106,7 @@ object KinesisConsumer:
     }.flatMap(ZStream.fromIterable)
 
   private val decodeRecords: ZPipeline[Any, Throwable, Record, InputMessage] =
-    ZPipeline.mapZIO { record =>
+    ZPipeline.mapZIO { (record: Record) =>
       val raw = StandardCharsets.UTF_8.decode(record.data().asByteBuffer()).toString
       ZIO
         .fromEither(decode[InputMessage](raw))

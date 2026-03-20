@@ -74,3 +74,10 @@ Kinesis input-stream
 ```
 
 Mensajes fallidos van a la **SQS DLQ** tras 3 reintentos.
+
+winget install EclipseAdoptium.Temurin.21.JDK
+winget install Docker.DockerDesktop
+winget install Hashicorp.Terraform
+winget install Coursier.Coursier
+cs install sbt
+winget install Amazon.AWSCLI

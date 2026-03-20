@@ -2,7 +2,6 @@ package com.pipeline.infrastructure.http
 
 import com.pipeline.config.AppConfig
 import sttp.client3.*
-import sttp.client3.asynchttpclient.zio.*
 import zio.*
 
 /** Cliente HTTP para obtener valores del servicio value-backend.

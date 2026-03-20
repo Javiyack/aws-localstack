@@ -60,18 +60,18 @@ object PipelineProcessor:
                 .orElseFail(new IllegalArgumentException("Sin ID"))
 
       // 3 — valor del servicio externo
-      _   <- ZIO.logInfo(s"Obteniendo valor para id=$id du=${msg.dispatchUnit}")
+      _   <- ZIO.logInfo(s"Obteniendo valor para id=$id nodeId=${msg.nodeId}")
       v   <- ValueClient.getValue(id)
 
       // 4 — construir intervalo
       now  = Instant.now()
       pi   = PerformanceInterval(
-               dispatchUnit = msg.dispatchUnit,
-               dttmUtc      = msg.dttmUtc,
-               minValue     = v,
-               maxValue     = v,
-               sumValue     = v,
-               count        = 1
+               dispatchUnit  = msg.nodeId,
+               nodeId        = msg.nodeId,
+               dttmUtc       = msg.dttmUtc,
+               meteredValue  = if msg.isRegistration then Some(v) else None,
+               baselineValue = if msg.isRegistration then None else Some(v),
+               baselineId    = msg.baselineId
              )
 
       // 5 — upsert Redis
@@ -87,7 +87,7 @@ object PipelineProcessor:
       // 8 — publicar en stream de salida
       _ <- KinesisProducer.publish(msg)
 
-      _ <- ZIO.logInfo(s"Procesado: du=${msg.dispatchUnit} value=$v")
+      _ <- ZIO.logInfo(s"Procesado: nodeId=${msg.nodeId} value=$v")
     yield ProcessingResult(msg, merged, v)
 
   /** Procesa una lista de mensajes aislando fallos individuales. */
@@ -96,7 +96,7 @@ object PipelineProcessor:
   ): ZIO[Env, Nothing, List[Either[Throwable, ProcessingResult]]] =
     ZIO.foreach(msgs) { msg =>
       process(msg).either.tap {
-        case Left(e)  => ZIO.logError(s"Error procesando ${msg.dispatchUnit}: ${e.getMessage}")
+        case Left(e)  => ZIO.logError(s"Error procesando ${msg.nodeId}: ${e.getMessage}")
         case Right(_) => ZIO.unit
       }
     }
