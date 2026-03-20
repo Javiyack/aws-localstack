@@ -207,12 +207,68 @@ resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
   period              = 60
   statistic           = "Sum"
   threshold           = 10
+  alarm_description   = "La Lambda de pipeline tiene una tasa de errores elevada (>10 en 2 min)"
 
   dimensions = {
     FunctionName = aws_lambda_function.pipeline.function_name
   }
 
   tags = local.common_tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "lambda_duration" {
+  alarm_name          = "${var.project_name}-lambda-duration"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Duration"
+  namespace           = "AWS/Lambda"
+  period              = 60
+  extended_statistic  = "p99"
+  threshold           = 10000  # 10 segundos en ms
+  alarm_description   = "Latencia p99 de Lambda supera 10s"
+
+  dimensions = {
+    FunctionName = aws_lambda_function.pipeline.function_name
+  }
+
+  tags = local.common_tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "dlq_messages" {
+  alarm_name          = "${var.project_name}-dlq-depth"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "ApproximateNumberOfMessagesVisible"
+  namespace           = "AWS/SQS"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 0
+  alarm_description   = "Hay mensajes en la DLQ (fallos no recuperables)"
+
+  dimensions = {
+    QueueName = aws_sqs_queue.dlq.name
+  }
+
+  tags = local.common_tags
+}
+
+# ── Secrets Manager — credenciales DB ────────────────────────
+resource "aws_secretsmanager_secret" "db_credentials" {
+  name        = "${var.project_name}/db-credentials"
+  description = "Credenciales PostgreSQL del pipeline"
+
+  tags = local.common_tags
+}
+
+resource "aws_secretsmanager_secret_version" "db_credentials" {
+  secret_id = aws_secretsmanager_secret.db_credentials.id
+  secret_string = jsonencode({
+    username = var.postgres_user
+    password = var.postgres_password
+    host     = var.postgres_host
+    port     = var.postgres_port
+    dbname   = var.postgres_database
+  })
 }
 
 # ── Locals ────────────────────────────────────────────────────

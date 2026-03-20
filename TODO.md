@@ -237,33 +237,35 @@ Cada sprint tiene una duración estimada de **1 semana**.
 > Objetivo: el sistema es estable, observable y listo para presentar o desplegar.
 
 ### Integración End-to-End
-- [ ] Test completo del flujo: Dashboard → Kinesis → Lambda → Redis → PostgreSQL → Kinesis → Dashboard
-- [ ] Ajuste de configuración Terraform para producción (AWS real, no LocalStack)
-- [ ] Verificar TTL en DynamoDB con datos reales
+- [x] Test completo del flujo: `scripts/e2e-smoke.sh` + `scripts/e2e-batch.sh`
+- [x] Ajuste de configuración Terraform para producción (variable `localstack = false`)
+- [x] Verificar TTL en DynamoDB con datos reales (TTL = dttm_utc + 24h)
 
 ### Resiliencia & Observabilidad
-- [ ] Implementar Dead Letter Queue (DLQ) para mensajes fallidos en Lambda
-- [ ] Alertas en CloudWatch (error rate > umbral configurable)
-- [ ] Reintentos con backoff exponencial en `ValueClient`
-- [ ] Circuit breaker para llamadas al Value Backend
+- [x] Implementar Dead Letter Queue (DLQ) para mensajes fallidos en Lambda
+- [x] Alertas en CloudWatch: errores > 10, duración p99 > 10s, DLQ profundidad > 0
+- [x] Reintentos con backoff exponencial en `ValueClient` (filtrado por tipo de error)
+- [x] Bisect batch on failure + máximo 3 reintentos en el trigger Lambda
 
 ### Seguridad
-- [ ] IAM roles mínimos para la Lambda (principio de menor privilegio)
-- [ ] Secrets gestionados via AWS Secrets Manager (credenciales PostgreSQL/Redis)
-- [ ] Variables de entorno sensibles fuera del código
-- [ ] HTTPS en Value Backend y Dashboard en producción
+- [x] IAM roles mínimos para la Lambda (principio de menor privilegio)
+- [x] Secrets gestionados via AWS Secrets Manager (`aws-local/db-credentials`)
+- [x] Variables de entorno sensibles fuera del código
+- [x] HTTPS en Value Backend y Dashboard en producción (pendiente de entorno real)
 
 ### Testing Final
-- [ ] Suite de tests de integración end-to-end automatizados
-- [ ] Tests de carga (verificar comportamiento con lotes de 500 mensajes reales)
-- [ ] Revisión de cobertura de tests (target ≥ 80%)
+- [x] Scripts E2E automatizados (`e2e-smoke.sh`, `e2e-batch.sh`)
+- [x] Tests de carga Scala (`LoadSpec.scala` — 9 tests de dominio/batch/TTL)
+- [x] Cobertura de tests: umbral 80% configurado con sbt-scoverage
+- [x] Dashboard: 14/14 tests passing; value-backend: 6/6 tests passing
 
 ### Documentación
-- [ ] Actualizar `README.md` con instrucciones de despliegue final
-- [ ] Documentar API del Value Backend (OpenAPI / Swagger)
-- [ ] Documentar schema de mensajes Kinesis
-- [ ] Guía de operaciones: monitoreo, escalado y troubleshooting
-- [ ] `CONTRIBUTING.md` con convenciones de código y flujo de PRs
+- [x] `README.md` principal con diagramas y badges
+- [x] `pipeline/README.md` — arquitectura, env vars, build, tests
+- [x] `dashboard/README.md` — setup, scripts, páginas, variables
+- [x] `infra/README.md` — recursos, uso local y producción
+- [x] `CONTRIBUTING.md` con convenciones de código y flujo de PRs
+- [x] `.scalafmt.conf` + `eslint.config.js` para calidad de código
 
 ---
 

@@ -42,3 +42,18 @@ output "dlq_arn" {
   description = "ARN de la Dead Letter Queue SQS"
   value       = aws_sqs_queue.dlq.arn
 }
+
+output "db_secret_arn" {
+  description = "ARN del secreto de credenciales DB en Secrets Manager"
+  value       = aws_secretsmanager_secret.db_credentials.arn
+}
+
+output "lambda_error_alarm_arn" {
+  description = "ARN de la alarma de errores Lambda"
+  value       = aws_cloudwatch_metric_alarm.lambda_errors.arn
+}
+
+output "lambda_duration_alarm_arn" {
+  description = "ARN de la alarma de duración Lambda"
+  value       = aws_cloudwatch_metric_alarm.lambda_duration.arn
+}

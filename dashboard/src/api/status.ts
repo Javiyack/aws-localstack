@@ -1,4 +1,5 @@
 import { localstackClient } from './client'
+import { getDlqInfo } from './dlq'
 import type { ResourceInfo } from '@/types/resources'
 
 export async function fetchAllResourceStatuses(): Promise<ResourceInfo[]> {
@@ -6,7 +7,8 @@ export async function fetchAllResourceStatuses(): Promise<ResourceInfo[]> {
     fetchKinesisStatus('input-stream'),
     fetchKinesisStatus('output-stream'),
     fetchDynamoStatus('audit-records'),
-    fetchLambdaStatus('pipeline-processor')
+    fetchLambdaStatus('pipeline-processor'),
+    fetchDlqStatus()
   ])
   return settled.flatMap(r => (r.status === 'fulfilled' ? [r.value] : []))
 }
@@ -74,5 +76,21 @@ async function fetchLambdaStatus(functionName: string): Promise<ResourceInfo> {
       name: functionName, type: 'lambda', status: 'error',
       details: { functionName, runtime: 'java21', lastModified: '' }, lastChecked: new Date()
     }
+  }
+}
+
+async function fetchDlqStatus(): Promise<ResourceInfo> {
+  const info = await getDlqInfo()
+  const hasMessages = info.approximateMessages > 0
+  return {
+    name:   info.queueName,
+    type:   'kinesis',   // reuse type slot (no 'sqs' type in union — maps to similar icon)
+    status: hasMessages ? 'error' : 'healthy',
+    details: {
+      type:           'SQS DLQ',
+      messages:        info.approximateMessages,
+      inFlight:        info.approximateInFlight
+    },
+    lastChecked: new Date()
   }
 }

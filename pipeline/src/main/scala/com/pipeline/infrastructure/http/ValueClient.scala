@@ -40,16 +40,31 @@ object ValueClient:
 
   // ─── private ──────────────────────────────────────────────────────────────
 
+  /** Reintentos con backoff exponencial solo para errores de red recuperables.
+   *  - ConnectException / SocketTimeoutException → reintentar
+   *  - 4xx del servidor → no reintentar (error permanente)
+   *  - 5xx del servidor → reintentar
+   */
+  private val retrySchedule: Schedule[Any, Throwable, Any] =
+    Schedule.exponential(200.millis) &&
+    Schedule.recurs(3) &&
+    Schedule.recurWhile[Throwable] {
+      case _: java.net.ConnectException       => true
+      case _: java.net.SocketTimeoutException => true
+      case _: java.net.SocketException        => true
+      case e: RuntimeException
+        if e.getMessage != null &&
+           e.getMessage.startsWith("HTTP error: 5") => true
+      case _                                  => false
+    }
+
   private def sendWithRetry[T](
     request: Request[T, Any]
   ): ZIO[SttpBackend[Task, Any], Throwable, Response[T]] =
     ZIO.serviceWithZIO[SttpBackend[Task, Any]] { backend =>
       request
         .send(backend)
-        .retry(
-          Schedule.exponential(200.millis) &&
-          Schedule.recurs(3)
-        )
+        .retry(retrySchedule)
     }
 
   private def parseValue(body: String): Either[String, Double] =
