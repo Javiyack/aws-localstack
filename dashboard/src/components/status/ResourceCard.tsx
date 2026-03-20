@@ -1,10 +1,8 @@
 import type { ResourceInfo } from '@/types/resources'
 import { StatusBadge } from './StatusBadge'
-import { Activity, Database, Layers, Server, GitBranch } from 'lucide-react'
+import { type LucideIcon, Activity, Database, Layers, Server, GitBranch } from 'lucide-react'
 
-type IconComponent = React.ComponentType<{ size?: number; className?: string }>
-
-const ICONS: Record<ResourceInfo['type'], IconComponent> = {
+const ICONS: Record<ResourceInfo['type'], LucideIcon> = {
   kinesis:  GitBranch,
   lambda:   Layers,
   dynamodb: Database,
