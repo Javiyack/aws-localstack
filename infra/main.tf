@@ -15,6 +15,7 @@ provider "aws" {
   skip_credentials_validation = var.localstack
   skip_metadata_api_check     = var.localstack
   skip_requesting_account_id  = var.localstack
+  s3_use_path_style           = var.localstack
 
   dynamic "endpoints" {
     for_each = var.localstack ? [1] : []
@@ -27,6 +28,7 @@ provider "aws" {
       sqs              = "http://localhost:4566"
       iam              = "http://localhost:4566"
       secretsmanager   = "http://localhost:4566"
+      s3               = "http://localhost:4566"
     }
   }
 }
@@ -142,6 +144,28 @@ data "aws_iam_policy_document" "lambda_permissions" {
     ]
     resources = ["arn:aws:logs:*:*:/aws/lambda/${var.project_name}-*"]
   }
+
+  # S3 — leer artefacto Lambda
+  statement {
+    actions   = ["s3:GetObject"]
+    resources = ["arn:aws:s3:::${var.project_name}-lambda-artifacts/*"]
+  }
+}
+
+# ── S3 bucket — artefactos Lambda ──────────────────────────────
+resource "aws_s3_bucket" "lambda_artifacts" {
+  bucket        = "${var.project_name}-lambda-artifacts"
+  force_destroy = true
+
+  tags = local.common_tags
+}
+
+resource "aws_s3_object" "lambda_jar" {
+  count  = fileexists(local.lambda_jar_path) ? 1 : 0
+  bucket = aws_s3_bucket.lambda_artifacts.id
+  key    = "pipeline-assembly.jar"
+  source = local.lambda_jar_path
+  etag   = fileexists(local.lambda_jar_path) ? filemd5(local.lambda_jar_path) : null
 }
 
 # ── Lambda Function ───────────────────────────────────────────
@@ -153,7 +177,8 @@ resource "aws_lambda_function" "pipeline" {
   timeout       = 300
   memory_size   = 512
 
-  filename         = local.lambda_jar_path
+  s3_bucket        = aws_s3_bucket.lambda_artifacts.id
+  s3_key           = "pipeline-assembly.jar"
   source_code_hash = fileexists(local.lambda_jar_path) ? filebase64sha256(local.lambda_jar_path) : null
 
   environment {
@@ -178,7 +203,7 @@ resource "aws_lambda_function" "pipeline" {
 
   tags = local.common_tags
 
-  depends_on = [aws_iam_role_policy.lambda_policy]
+  depends_on = [aws_iam_role_policy.lambda_policy, aws_s3_object.lambda_jar]
 }
 
 # ── Trigger: Kinesis → Lambda ─────────────────────────────────
