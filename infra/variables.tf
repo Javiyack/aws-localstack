@@ -49,7 +49,7 @@ variable "dynamodb_table_name" {
 variable "redis_host" {
   description = "Host de Redis"
   type        = string
-  default     = "localhost"
+  default     = "pipeline-redis"
 }
 
 variable "redis_port" {
@@ -61,7 +61,7 @@ variable "redis_port" {
 variable "postgres_host" {
   description = "Host de PostgreSQL"
   type        = string
-  default     = "localhost"
+  default     = "pipeline-postgres"
 }
 
 variable "postgres_port" {
@@ -93,5 +93,5 @@ variable "postgres_password" {
 variable "value_backend_url" {
   description = "URL base del Value Backend"
   type        = string
-  default     = "http://localhost:3333"
+  default     = "http://value-backend:3333"
 }

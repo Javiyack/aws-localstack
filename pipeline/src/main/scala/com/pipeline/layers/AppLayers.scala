@@ -21,7 +21,7 @@ import java.net.URI
  */
 object AppLayers:
 
-  val live: ZLayer[Any, Throwable, PipelineProcessor.Env] =
+  lazy val live: ZLayer[Any, Throwable, PipelineProcessor.Env] =
     ZLayer.makeSome[Any, PipelineProcessor.Env](
       AppConfig.layer,
       kinesisLayer,
@@ -41,7 +41,7 @@ object AppLayers:
             val builder = KinesisAsyncClient.builder().region(Region.of(cfg.kinesis.region))
             if cfg.localstack then
               builder
-                .endpointOverride(URI.create("http://localhost:4566"))
+                .endpointOverride(URI.create(cfg.kinesis.endpoint))
                 .credentialsProvider(
                   StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test"))
                 )
@@ -63,7 +63,7 @@ object AppLayers:
             val builder = DynamoDbAsyncClient.builder().region(Region.of(cfg.dynamo.region))
             if cfg.localstack then
               builder
-                .endpointOverride(URI.create("http://localhost:4566"))
+                .endpointOverride(URI.create(cfg.dynamo.endpoint))
                 .credentialsProvider(
                   StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test"))
                 )

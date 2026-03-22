@@ -175,7 +175,7 @@ resource "aws_lambda_function" "pipeline" {
   handler       = "com.pipeline.LambdaHandler"
   runtime       = "java21"
   timeout       = 300
-  memory_size   = 512
+  memory_size   = 1024
 
   s3_bucket        = aws_s3_bucket.lambda_artifacts.id
   s3_key           = "pipeline-assembly.jar"
@@ -183,11 +183,11 @@ resource "aws_lambda_function" "pipeline" {
 
   environment {
     variables = {
-      KINESIS_ENDPOINT          = var.localstack ? "http://localhost:4566" : ""
+      KINESIS_ENDPOINT          = var.localstack ? "http://localstack:4566" : ""
       KINESIS_REGION            = var.aws_region
       KINESIS_INPUT_STREAM_NAME = aws_kinesis_stream.input.name
       KINESIS_OUTPUT_STREAM_NAME = aws_kinesis_stream.output.name
-      DYNAMO_ENDPOINT           = var.localstack ? "http://localhost:4566" : ""
+      DYNAMO_ENDPOINT           = var.localstack ? "http://localstack:4566" : ""
       DYNAMO_REGION             = var.aws_region
       DYNAMO_TABLE_NAME         = aws_dynamodb_table.audit.name
       REDIS_HOST                = var.redis_host

@@ -70,6 +70,7 @@ lazy val root = (project in file("."))
       // ── Logging ───────────────────────────────────────────────
       "dev.zio" %% "zio-logging"       % "2.5.0",
       "dev.zio" %% "zio-logging-slf4j" % "2.5.0",
+      "org.slf4j"  % "slf4j-simple"     % "2.0.16",
 
       // ── Test ──────────────────────────────────────────────────
       "dev.zio" %% "zio-test"          % zioVersion % Test,
@@ -80,6 +81,7 @@ lazy val root = (project in file("."))
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
 
     // ── sbt-assembly fat JAR para Lambda ─────────────────────────
+    assembly / test := {},
     assembly / assemblyJarName := "pipeline-assembly.jar",
     assembly / assemblyMergeStrategy := {
       case PathList("META-INF", "services", xs @ _*) => MergeStrategy.concat
