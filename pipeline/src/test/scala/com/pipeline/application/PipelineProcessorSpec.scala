@@ -86,19 +86,17 @@ object PipelineProcessorSpec extends ZIOSpecDefault:
         val pi = PerformanceInterval("DU-01", "DU-01", now, meteredValue = Some(v))
         assertTrue(
           pi.meteredValue  == Some(v),
-          pi.baselineValue.isEmpty,
-          pi.baselineId.isEmpty
+          pi.baselineValue.isEmpty
         )
       },
 
       test("merge de registro y baseline produce intervalo completo") {
         val a = PerformanceInterval("DU-01", "DU-01", now, meteredValue = Some(950.1234))
-        val b = PerformanceInterval("DU-01", "DU-01", now, baselineValue = Some(800.0), baselineId = Some("b-1"))
+        val b = PerformanceInterval("DU-01", "DU-01", now, baselineValue = Some(800.0))
         val m = a.merge(b)
         assertTrue(
           m.meteredValue  == Some(950.1234),
           m.baselineValue == Some(800.0),
-          m.baselineId    == Some("b-1")
         )
       }
     ),

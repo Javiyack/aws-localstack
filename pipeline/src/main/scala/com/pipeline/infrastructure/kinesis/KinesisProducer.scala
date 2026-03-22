@@ -1,7 +1,6 @@
 package com.pipeline.infrastructure.kinesis
 
 import com.pipeline.config.AppConfig
-import com.pipeline.domain.InputMessage
 import com.pipeline.codec.JsonCodecs.given
 import io.circe.syntax.*
 import software.amazon.awssdk.core.SdkBytes
@@ -10,17 +9,18 @@ import software.amazon.awssdk.services.kinesis.model.*
 import zio.*
 
 import java.nio.charset.StandardCharsets
+import com.pipeline.domain.PerformanceInterval
 
 /** Publica registros en el stream de salida Kinesis. */
 object KinesisProducer:
 
   type Env = KinesisAsyncClient & AppConfig
 
-  /** Publica un InputMessage serializado como JSON.
+  /** Publica un PerformanceInterval serializado como JSON.
    *
    *  Usa `dispatchUnit` como partition key para garantizar orden por unidad.
    */
-  def publish(msg: InputMessage): ZIO[Env, Throwable, PutRecordResponse] =
+  def publish(msg: PerformanceInterval): ZIO[Env, Throwable, PutRecordResponse] =
     for
       cfg  <- ZIO.service[AppConfig]
       resp <- put(msg, cfg.kinesis.outputStreamName)
@@ -28,7 +28,7 @@ object KinesisProducer:
 
   /** Publica un lote de mensajes (PutRecords — hasta 500 por llamada). */
   def publishBatch(
-    msgs: List[InputMessage]
+    msgs: List[PerformanceInterval]
   ): ZIO[Env, Throwable, Unit] =
     for
       cfg    <- ZIO.service[AppConfig]
@@ -59,7 +59,7 @@ object KinesisProducer:
   // ─── private ──────────────────────────────────────────────────────────────
 
   private def put(
-    msg: InputMessage,
+    msg: PerformanceInterval,
     streamName: String
   ): ZIO[KinesisAsyncClient, Throwable, PutRecordResponse] =
     ZIO.serviceWithZIO[KinesisAsyncClient] { client =>

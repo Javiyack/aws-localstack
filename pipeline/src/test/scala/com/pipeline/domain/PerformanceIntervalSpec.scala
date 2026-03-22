@@ -13,20 +13,18 @@ object PerformanceIntervalSpec extends ZIOSpecDefault:
     nodeId        = "node-1",
     dttmUtc       = now,
     meteredValue  = Some(100.0),
-    baselineValue = None,
-    baselineId    = None
+    baselineValue = None
   )
 
   def spec = suite("PerformanceInterval")(
 
     suite("merge")(
       test("merge combina meteredValue y baselineValue en un solo intervalo") {
-        val withBaseline = base.copy(meteredValue = None, baselineValue = Some(200.0), baselineId = Some("b-1"))
+        val withBaseline = base.copy(meteredValue = None, baselineValue = Some(200.0))
         val merged       = base.merge(withBaseline)
         assertTrue(
           merged.meteredValue  == Some(100.0),
-          merged.baselineValue == Some(200.0),
-          merged.baselineId    == Some("b-1")
+          merged.baselineValue == Some(200.0)
         )
       },
       test("merge — el valor más reciente sobreescribe el anterior") {

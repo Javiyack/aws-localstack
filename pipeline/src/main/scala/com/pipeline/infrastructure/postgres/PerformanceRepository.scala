@@ -72,7 +72,7 @@ object PerformanceRepository:
         (dispatch_unit, node_id, dttm_utc, metered_value, baseline_value, baseline_id)
       VALUES
         (${i.dispatchUnit}, ${i.nodeId}, ${Timestamp.from(i.dttmUtc)},
-         ${i.meteredValue}, ${i.baselineValue}, ${i.baselineId})
+         ${i.meteredValue}, ${i.baselineValue})
       ON CONFLICT (dispatch_unit, dttm_utc) DO UPDATE SET
         metered_value  = COALESCE(EXCLUDED.metered_value,  performance_intervals.metered_value),
         baseline_value = COALESCE(EXCLUDED.baseline_value, performance_intervals.baseline_value),
@@ -91,6 +91,5 @@ object PerformanceRepository:
       nodeId        = row._2,
       dttmUtc       = row._3.toInstant,
       meteredValue  = row._4,
-      baselineValue = row._5,
-      baselineId    = row._6
+      baselineValue = row._5
     )

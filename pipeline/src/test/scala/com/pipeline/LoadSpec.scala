@@ -58,12 +58,11 @@ object LoadSpec extends ZIOSpecDefault:
 
       test("merge preserva meteredValue cuando el nuevo no lo tiene") {
         val reg  = PerformanceInterval("DU-A", "node-1", now, meteredValue = Some(1000.0))
-        val base = PerformanceInterval("DU-A", "node-1", now, baselineValue = Some(500.0), baselineId = Some("b-1"))
+        val base = PerformanceInterval("DU-A", "node-1", now, baselineValue = Some(500.0))
         val merged = (1 until 100).foldLeft(reg)((acc, _) => acc.merge(base))
         assertTrue(
           merged.meteredValue  == Some(1000.0),
-          merged.baselineValue == Some(500.0),
-          merged.baselineId    == Some("b-1")
+          merged.baselineValue == Some(500.0)
         )
       },
 
@@ -75,12 +74,12 @@ object LoadSpec extends ZIOSpecDefault:
         assertTrue(merged.meteredValue == Some(500.0))
       },
 
-      test("merge — baselineId del más reciente gana") {
+      test("merge — baselineValue del más reciente gana") {
         val intervals = (1 to 50).map(i =>
-          PerformanceInterval("DU-C", s"node-$i", now, baselineId = Some(s"b-$i"))
+          PerformanceInterval("DU-C", s"node-$i", now, baselineValue = Some(i.toDouble * 10.0))
         ).toList
         val merged = intervals.tail.foldLeft(intervals.head)(_.merge(_))
-        assertTrue(merged.baselineId == Some("b-50"))
+        assertTrue(merged.baselineValue == Some(500.0))
       }
     ),
 

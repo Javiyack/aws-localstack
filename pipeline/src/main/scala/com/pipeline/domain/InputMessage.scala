@@ -24,3 +24,5 @@ final case class InputMessage(
 
   /** True si el mensaje tiene registrationId (vs baselineId). */
   def isRegistration: Boolean = registrationId.isDefined
+  /** True si el mensaje tiene baselineId (vs registrationId). */
+  def isBaseline: Boolean = baselineId.isDefined

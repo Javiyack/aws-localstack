@@ -47,3 +47,6 @@ desktop.ini
 *.swp
 *.swo
 *~
+pipeline/src/main/scala/com/pipeline/domain/InputMessage.scala
+.bloop/
+metals.sbt

@@ -58,11 +58,10 @@ object PipelineProcessor:
       // 2 — identificador efectivo
       id  <- ZIO.fromOption(msg.resolvedId)
                 .orElseFail(new IllegalArgumentException("Sin ID"))
-
       // 3 — valor del servicio externo
       _   <- ZIO.logInfo(s"Obteniendo valor para id=$id nodeId=${msg.nodeId}")
       v   <- ValueClient.getValue(id)
-
+      _   <- ZIO.logInfo(s"Valor obtenido para id=$id nodeId=${msg.nodeId}: $v")
       // 4 — construir intervalo
       now  = Instant.now()
       pi   = PerformanceInterval(
@@ -70,8 +69,7 @@ object PipelineProcessor:
                nodeId        = msg.nodeId,
                dttmUtc       = msg.dttmUtc,
                meteredValue  = if msg.isRegistration then Some(v) else None,
-               baselineValue = if msg.isRegistration then None else Some(v),
-               baselineId    = msg.baselineId
+               baselineValue = if msg.isBaseline then Some(v) else None
              )
 
       // 5 — upsert Redis
@@ -85,7 +83,7 @@ object PipelineProcessor:
       _ <- AuditRepository.put(AuditRecord.from(msg, now))
 
       // 8 — publicar en stream de salida
-      _ <- KinesisProducer.publish(msg)
+      resp <- KinesisProducer.publish(merged)
 
       _ <- ZIO.logInfo(s"Procesado: nodeId=${msg.nodeId} value=$v")
     yield ProcessingResult(msg, merged, v)

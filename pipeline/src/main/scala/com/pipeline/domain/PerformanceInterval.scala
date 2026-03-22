@@ -15,7 +15,7 @@ final case class PerformanceInterval(
   dttmUtc:       Instant,
   meteredValue:  Option[Double] = None,
   baselineValue: Option[Double] = None,
-  baselineId:    Option[String] = None
+  processedDttm: Instant = Instant.now()
 ):
   /** Combina este objeto con uno más reciente, conservando campos previos
    *  cuando el nuevo los deja indefinidos.
@@ -29,5 +29,5 @@ final case class PerformanceInterval(
     copy(
       meteredValue  = newer.meteredValue.orElse(meteredValue),
       baselineValue = newer.baselineValue.orElse(baselineValue),
-      baselineId    = newer.baselineId.orElse(baselineId)
+      processedDttm = newer.processedDttm
     )
